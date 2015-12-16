@@ -15,4 +15,9 @@
             </livro>
         </item>
     </itens>
+
+    <pagamento>
+       <status>CONFIRMADO</status>
+       <valor>29.90</valor>
+    </pagamento>
 </pedido>
