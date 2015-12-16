@@ -17,10 +17,14 @@ import br.com.caelum.livraria.modelo.Livro;
  * Recebe o valor de uma requisição ao JSON, e converte ele
  * na classe que contém somente os atributos que queremos
  * 
+ * obs: pooling roda sem parar. Teria que usar um timer para
+ * evitar isso ou um event listener
+ * 
  * @author tca85
  *
  */
 public class TestePooling {
+	@SuppressWarnings("resource")
 	public static void main(String[] args) throws Exception {
 		CamelContext ctx = new DefaultCamelContext();
 
