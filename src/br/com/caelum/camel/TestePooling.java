@@ -24,6 +24,9 @@ import br.com.caelum.livraria.modelo.Livro;
  * - create table Livros( nomeAutor TEXT );
  * 
  * O projeto fj36-livraria precisa estar rodando
+ * - O método livrosMaisVendidos da LojaController é que tem
+ * a requisição
+ * http://localhost:8081/fj36-livraria/loja/livros/mais-vendidos
  * 
  * obs: pooling roda sem parar. Teria que usar um timer para
  * evitar isso ou um event listener
@@ -78,6 +81,7 @@ public class TestePooling {
 				
 				// nova rota com o nome livros:
 				.to("direct:livros");
+				
 				from("direct:livros")
 				.split(body())
 				.process(new Processor() {
@@ -96,8 +100,8 @@ public class TestePooling {
 				// insere um por um na tabela Livros, criada no database fj36_camel
 				// insert into Livros (nomeAutor) values (:nomeAutor)
 				//.setBody(simple("insert into Livros (nomeAutor) values ('${header[nomeAutor]}')"))
-				.setBody(simple("insert into Livros (nomeAutor) values (:nomeAutor)"))
-				.to("jdbc:mysqlDataSource");
+				.setBody(simple("insert into Livros (nomeAutor) values (:?nomeAutor)"))
+				.to("jdbc:mysqlDataSource?useHeadersAsParameters=true");
 			}
 		});
 		
