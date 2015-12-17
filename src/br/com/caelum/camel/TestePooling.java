@@ -10,12 +10,20 @@ import org.apache.camel.Message;
 import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.impl.DefaultCamelContext;
+import org.apache.camel.util.jndi.JndiContext;
+
+import com.mysql.jdbc.jdbc2.optional.MysqlConnectionPoolDataSource;
 
 import br.com.caelum.livraria.modelo.Livro;
 
 /**
- * Recebe o valor de uma requisição ao JSON, e converte ele
+ * Recebe o valor de uma requisição ao JSON, converte ele
  * na classe que contém somente os atributos que queremos
+ * e depois insere em uma tabela no MySQL:
+ * - create database fj36_camel
+ * - create table Livros( nomeAutor TEXT );
+ * 
+ * O projeto fj36-livraria precisa estar rodando
  * 
  * obs: pooling roda sem parar. Teria que usar um timer para
  * evitar isso ou um event listener
@@ -26,7 +34,18 @@ import br.com.caelum.livraria.modelo.Livro;
 public class TestePooling {
 	@SuppressWarnings("resource")
 	public static void main(String[] args) throws Exception {
-		CamelContext ctx = new DefaultCamelContext();
+		// Cria o datasource para o MySQL que o Camel utilizará para mandar a query
+		MysqlConnectionPoolDataSource mysqlDs = new MysqlConnectionPoolDataSource();
+		mysqlDs.setDatabaseName("fj36_camel");
+		mysqlDs.setServerName("localhost");
+		mysqlDs.setPort(3306);
+		mysqlDs.setUser("root");
+		mysqlDs.setPassword("");
+		
+		JndiContext jndi = new JndiContext();
+		jndi.rebind("mysqlDataSource", mysqlDs);
+		
+		CamelContext ctx = new DefaultCamelContext(jndi);
 
 		ctx.addRoutes(new RouteBuilder() {
 
@@ -54,8 +73,31 @@ public class TestePooling {
 				
 				// cria uma nova rota que recebe a lista de livros e divide em partes (cada livro)
 				// como essa rota ainda não existe, vamos mockear:
-				.log("${body}")
-				.to("mock:livros");
+				// .log("${body}")
+				//.to("mock:livros");
+				
+				// nova rota com o nome livros:
+				.to("direct:livros");
+				from("direct:livros")
+				.split(body())
+				.process(new Processor() {
+					
+					@Override
+					public void process(Exchange exchange) throws Exception {
+						Message inbound = exchange.getIn();
+						
+						Livro livro = (Livro) inbound.getBody();
+						
+						String nomeAutor = livro.getNomeAutor();
+						inbound.setHeader("nomeAutor", nomeAutor);	
+					}
+				})
+				
+				// insere um por um na tabela Livros, criada no database fj36_camel
+				// insert into Livros (nomeAutor) values (:nomeAutor)
+				//.setBody(simple("insert into Livros (nomeAutor) values ('${header[nomeAutor]}')"))
+				.setBody(simple("insert into Livros (nomeAutor) values (:nomeAutor)"))
+				.to("jdbc:mysqlDataSource");
 			}
 		});
 		
